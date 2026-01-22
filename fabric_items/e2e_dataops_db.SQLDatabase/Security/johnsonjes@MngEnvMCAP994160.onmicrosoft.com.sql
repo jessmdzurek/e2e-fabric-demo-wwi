@@ -1,0 +1,6 @@
+CREATE USER [johnsonjes@MngEnvMCAP994160.onmicrosoft.com]
+    WITH SID = 0x322D0B5EF2A1E44283491E24960EBFA6, TYPE = E;
+
+
+GO
+
