@@ -9,10 +9,17 @@ CREATE TABLE [log].[IngestRun] (
     [WatermarkStart] NVARCHAR (200)   NULL,
     [WatermarkEnd]   NVARCHAR (200)   NULL,
     [Message]        NVARCHAR (2000)  NULL,
+    [PipelineRunId]  VARCHAR (100)    NULL,
     PRIMARY KEY CLUSTERED ([RunId] ASC),
     CONSTRAINT [CK_IngestRun_Status] CHECK ([Status]='FAILED' OR [Status]='WARNED' OR [Status]='SUCCEEDED' OR [Status]='STARTED'),
     CONSTRAINT [FK_IngestRun_Dataset] FOREIGN KEY ([DatasetId]) REFERENCES [cfg].[Dataset] ([DatasetId])
 );
+
+
+GO
+
+CREATE NONCLUSTERED INDEX [IX_IngestRun_RunId_DatasetId]
+    ON [log].[IngestRun]([RunId] ASC, [DatasetId] ASC);
 
 
 GO

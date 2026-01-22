@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "nb_materlize_bronze_from_files"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "198e30a4-ec92-89f7-482b-22d5b668ef06"
+  }
+}

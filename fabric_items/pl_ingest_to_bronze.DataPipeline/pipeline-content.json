@@ -1,0 +1,603 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "type": "Lookup",
+        "typeProperties": {
+          "source": {
+            "type": "FabricSqlDatabaseSource",
+            "partitionOption": "None",
+            "queryTimeout": "02:00:00"
+          },
+          "datasetSettings": {
+            "type": "FabricSqlDatabaseTable",
+            "typeProperties": {
+              "schema": "dbo",
+              "table": "vw_ActiveDatasets"
+            },
+            "schema": [],
+            "connectionSettings": {
+              "name": "e2e_dataops_db",
+              "properties": {
+                "type": "FabricSqlDatabase",
+                "typeProperties": {
+                  "artifactId": "d369dbc3-91ed-9aca-41f1-3cc540cdea05",
+                  "workspaceId": "00000000-0000-0000-0000-000000000000"
+                },
+                "externalReferences": {
+                  "connection": "d446b2b0-c4a7-4b93-b938-661066f20746"
+                },
+                "annotations": []
+              }
+            },
+            "annotations": []
+          },
+          "firstRowOnly": false
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "lkp_Datasets_ToIngest",
+        "dependsOn": []
+      },
+      {
+        "type": "ForEach",
+        "typeProperties": {
+          "isSequential": true,
+          "items": {
+            "value": "@activity('lkp_Datasets_ToIngest').output.value",
+            "type": "Expression"
+          },
+          "activities": [
+            {
+              "type": "SetVariable",
+              "typeProperties": {
+                "variableName": "vDatasetId",
+                "value": {
+                  "value": "@item().DatasetId",
+                  "type": "Expression"
+                }
+              },
+              "policy": {
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "Set_vDatasetId",
+              "dependsOn": []
+            },
+            {
+              "type": "SetVariable",
+              "typeProperties": {
+                "variableName": "vSchema",
+                "value": {
+                  "value": "@item().SourceSchema",
+                  "type": "Expression"
+                }
+              },
+              "policy": {
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "Set_vSchema",
+              "dependsOn": [
+                {
+                  "activity": "Set_vDatasetId",
+                  "dependencyConditions": [
+                    "Succeeded"
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "SetVariable",
+              "typeProperties": {
+                "variableName": "vObject",
+                "value": {
+                  "value": "@item().SourceObject",
+                  "type": "Expression"
+                }
+              },
+              "policy": {
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "Set_vObject",
+              "dependsOn": [
+                {
+                  "activity": "Set_vSchema",
+                  "dependencyConditions": [
+                    "Succeeded"
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "SetVariable",
+              "typeProperties": {
+                "variableName": "vTargetBronzeTable",
+                "value": {
+                  "value": "@item().TargetBronzeTable",
+                  "type": "Expression"
+                }
+              },
+              "policy": {
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "Set_vTargetBronzeTable",
+              "dependsOn": [
+                {
+                  "activity": "Set_vObject",
+                  "dependencyConditions": [
+                    "Succeeded"
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "SetVariable",
+              "typeProperties": {
+                "variableName": "vPipelineRunId",
+                "value": {
+                  "value": "@concat(pipeline().RunId, '-', string(item().DatasetId))\n",
+                  "type": "Expression"
+                }
+              },
+              "policy": {
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "Set_vRunId",
+              "dependsOn": [
+                {
+                  "activity": "Set_vTargetBronzeTable",
+                  "dependencyConditions": [
+                    "Succeeded"
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "Copy",
+              "typeProperties": {
+                "source": {
+                  "type": "SqlServerSource",
+                  "partitionOption": "None",
+                  "queryTimeout": "02:00:00",
+                  "datasetSettings": {
+                    "type": "SqlServerTable",
+                    "typeProperties": {
+                      "schema": {
+                        "value": "@variables('vSchema')",
+                        "type": "Expression"
+                      },
+                      "table": {
+                        "value": "@variables('vObject')",
+                        "type": "Expression"
+                      },
+                      "database": "WideWorldImporters"
+                    },
+                    "schema": [],
+                    "externalReferences": {
+                      "connection": "50bbb7c3-03ed-4085-800a-a175f94ad161"
+                    },
+                    "annotations": []
+                  }
+                },
+                "sink": {
+                  "type": "ParquetSink",
+                  "formatSettings": {
+                    "type": "ParquetWriteSettings",
+                    "enableVertiParquet": true
+                  },
+                  "storeSettings": {
+                    "type": "LakehouseWriteSettings"
+                  },
+                  "datasetSettings": {
+                    "type": "Parquet",
+                    "typeProperties": {
+                      "location": {
+                        "type": "LakehouseLocation",
+                        "folderPath": {
+                          "value": "@concat(\n    'bronze/',\n    variables('vTargetBronzeTable')\n)",
+                          "type": "Expression"
+                        }
+                      },
+                      "compressionCodec": "snappy"
+                    },
+                    "schema": [],
+                    "linkedService": {
+                      "name": "e2e_wwi_lh_bronze",
+                      "properties": {
+                        "type": "Lakehouse",
+                        "typeProperties": {
+                          "artifactId": "68dd75f0-4ab0-8af3-4d01-1ac473d813ad",
+                          "workspaceId": "00000000-0000-0000-0000-000000000000",
+                          "rootFolder": "Files"
+                        },
+                        "annotations": []
+                      }
+                    },
+                    "annotations": []
+                  }
+                },
+                "translator": {
+                  "type": "TabularTranslator",
+                  "typeConversion": true,
+                  "typeConversionSettings": {
+                    "allowDataTruncation": true,
+                    "treatBooleanAsNumber": false
+                  }
+                },
+                "enableStaging": false
+              },
+              "policy": {
+                "timeout": "0.12:00:00",
+                "retry": 2,
+                "retryIntervalInSeconds": 30,
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "cpy_ToBronzeFiles",
+              "dependsOn": [
+                {
+                  "activity": "log_StartBronzeIngestRun",
+                  "dependencyConditions": [
+                    "Succeeded"
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "SqlServerStoredProcedure",
+              "typeProperties": {
+                "storedProcedureName": "[log].[sp_IngestRun_Start]",
+                "storedProcedureParameters": {
+                  "DatasetId": {
+                    "value": {
+                      "value": "@variables('vDatasetId')",
+                      "type": "Expression"
+                    },
+                    "type": "Int32"
+                  },
+                  "Message": {
+                    "value": {
+                      "value": "@concat(\n  'Starting Bronze ingest for ',\n  variables('vSchema'),\n  '.',\nvariables('vObject')\n)",
+                      "type": "Expression"
+                    },
+                    "type": "String"
+                  },
+                  "PipelineRunId": {
+                    "value": {
+                      "value": "@variables('vPipelineRunId')",
+                      "type": "Expression"
+                    },
+                    "type": "String"
+                  }
+                }
+              },
+              "connectionSettings": {
+                "name": "e2e_dataops_db",
+                "properties": {
+                  "type": "FabricSqlDatabase",
+                  "typeProperties": {
+                    "artifactId": "d369dbc3-91ed-9aca-41f1-3cc540cdea05",
+                    "workspaceId": "00000000-0000-0000-0000-000000000000"
+                  },
+                  "externalReferences": {
+                    "connection": "d446b2b0-c4a7-4b93-b938-661066f20746"
+                  },
+                  "annotations": []
+                }
+              },
+              "policy": {
+                "timeout": "0.12:00:00",
+                "retry": 0,
+                "retryIntervalInSeconds": 30,
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "log_StartBronzeIngestRun",
+              "dependsOn": [
+                {
+                  "activity": "Set_vRunId",
+                  "dependencyConditions": [
+                    "Succeeded"
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "SqlServerStoredProcedure",
+              "typeProperties": {
+                "storedProcedureName": "[log].[sp_IngestRun_End]",
+                "storedProcedureParameters": {
+                  "Message": {
+                    "value": {
+                      "value": "@concat(\n  'Bronze ingest succeeded for ',\nvariables('vSchema'),\n  '.',\nvariables('vObject'),\n' to ',\nvariables('vTargetBronzeTable')\n)",
+                      "type": "Expression"
+                    },
+                    "type": "String"
+                  },
+                  "RowsRead": {
+                    "value": {
+                      "value": "@activity('cpy_ToBronzeFiles').output.rowsRead",
+                      "type": "Expression"
+                    },
+                    "type": "Int64"
+                  },
+                  "RowsWritten": {
+                    "value": {
+                      "value": "@activity('cpy_ToBronzeFiles').output.rowsCopied",
+                      "type": "Expression"
+                    },
+                    "type": "Int64"
+                  },
+                  "PipelineRunId": {
+                    "value": {
+                      "value": "@variables('vPipelineRunId')",
+                      "type": "Expression"
+                    },
+                    "type": "String"
+                  },
+                  "Status": {
+                    "value": "SUCCEEDED",
+                    "type": "String"
+                  },
+                  "DatasetId": {
+                    "value": {
+                      "value": "@variables('vDatasetId')",
+                      "type": "Expression"
+                    },
+                    "type": "String"
+                  }
+                }
+              },
+              "connectionSettings": {
+                "name": "e2e_dataops_db",
+                "properties": {
+                  "type": "FabricSqlDatabase",
+                  "typeProperties": {
+                    "artifactId": "d369dbc3-91ed-9aca-41f1-3cc540cdea05",
+                    "workspaceId": "00000000-0000-0000-0000-000000000000"
+                  },
+                  "externalReferences": {
+                    "connection": "d446b2b0-c4a7-4b93-b938-661066f20746"
+                  },
+                  "annotations": []
+                }
+              },
+              "policy": {
+                "timeout": "0.12:00:00",
+                "retry": 0,
+                "retryIntervalInSeconds": 30,
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "log_EndBronzeIngest_Success",
+              "dependsOn": [
+                {
+                  "activity": "cpy_ToBronzeFiles",
+                  "dependencyConditions": [
+                    "Succeeded"
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "SqlServerStoredProcedure",
+              "typeProperties": {
+                "storedProcedureName": "[log].[sp_IngestRun_End]",
+                "storedProcedureParameters": {
+                  "Message": {
+                    "value": {
+                      "value": "@concat(\n  'Bronze ingest failed for ',\nvariables('vSchema'),\n  '.',\nvariables('vObject')\n)",
+                      "type": "Expression"
+                    },
+                    "type": "String"
+                  },
+                  "RowsRead": {
+                    "value": null,
+                    "type": "Int64"
+                  },
+                  "RowsWritten": {
+                    "value": null,
+                    "type": "Int64"
+                  },
+                  "PipelineRunId": {
+                    "value": {
+                      "value": "@variables('vPipelineRunId')",
+                      "type": "Expression"
+                    },
+                    "type": "String"
+                  },
+                  "Status": {
+                    "value": "FAILED",
+                    "type": "String"
+                  },
+                  "DatasetId": {
+                    "value": {
+                      "value": "@variables('vDatasetId')",
+                      "type": "Expression"
+                    },
+                    "type": "String"
+                  }
+                }
+              },
+              "connectionSettings": {
+                "name": "e2e_dataops_db",
+                "properties": {
+                  "type": "FabricSqlDatabase",
+                  "typeProperties": {
+                    "artifactId": "d369dbc3-91ed-9aca-41f1-3cc540cdea05",
+                    "workspaceId": "00000000-0000-0000-0000-000000000000"
+                  },
+                  "externalReferences": {
+                    "connection": "d446b2b0-c4a7-4b93-b938-661066f20746"
+                  },
+                  "annotations": []
+                }
+              },
+              "policy": {
+                "timeout": "0.12:00:00",
+                "retry": 0,
+                "retryIntervalInSeconds": 30,
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "log_EndBronzeIngest_Failure",
+              "dependsOn": [
+                {
+                  "activity": "cpy_ToBronzeFiles",
+                  "dependencyConditions": [
+                    "Failed"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "name": "fe_IngestDatasetsToBronze",
+        "dependsOn": [
+          {
+            "activity": "if_DatasetExists",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Script",
+        "typeProperties": {
+          "scripts": [
+            {
+              "text": {
+                "value": "SELECT TOP 20 r.StartUtc, r.EndUtc, r.Status, r.RowsRead, r.RowsWritten, r.Message, d.SourceSchema, d.SourceObject, d.TargetBronzeTable\r\nFROM log.IngestRun r\r\nJOIN cfg.Dataset d ON r.DatasetId = d.DatasetId\r\nORDER BY r.StartUtc DESC;\r\n",
+                "type": "Expression"
+              },
+              "type": "Query"
+            }
+          ],
+          "scriptBlockExecutionTimeout": "02:00:00"
+        },
+        "connectionSettings": {
+          "name": "e2e_dataops_db",
+          "properties": {
+            "type": "FabricSqlDatabase",
+            "typeProperties": {
+              "artifactId": "d369dbc3-91ed-9aca-41f1-3cc540cdea05",
+              "workspaceId": "00000000-0000-0000-0000-000000000000"
+            },
+            "externalReferences": {
+              "connection": "d446b2b0-c4a7-4b93-b938-661066f20746"
+            },
+            "annotations": []
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "chk_LastRuns",
+        "dependsOn": [
+          {
+            "activity": "fe_IngestDatasetsToBronze",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "IfCondition",
+        "typeProperties": {
+          "expression": {
+            "value": "@greater(length(activity('lkp_Datasets_ToIngest').output.value), 0)\n",
+            "type": "Expression"
+          },
+          "ifTrueActivities": [],
+          "ifFalseActivities": [
+            {
+              "type": "Fail",
+              "typeProperties": {
+                "message": {
+                  "value": "@concat(\n    'No active datasets found in cfg.Dataset for source ',\n    pipeline().parameters.pSourceSystemName,\n    '. Nothing to ingest.'\n)",
+                  "type": "Expression"
+                },
+                "errorCode": "1001"
+              },
+              "name": "fail_NoActiveDatasets_copy1",
+              "dependsOn": []
+            }
+          ]
+        },
+        "name": "if_DatasetExists",
+        "dependsOn": [
+          {
+            "activity": "lkp_Datasets_ToIngest",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "198e30a4-ec92-89f7-482b-22d5b668ef06",
+          "workspaceId": "00000000-0000-0000-0000-000000000000"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "nb_MaterializeBronzeTables",
+        "dependsOn": [
+          {
+            "activity": "chk_LastRuns",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      }
+    ],
+    "parameters": {
+      "pSourceSystemName": {
+        "type": "string",
+        "defaultValue": "sqlsrv_wwi_oltp"
+      }
+    },
+    "variables": {
+      "vDatasetId": {
+        "type": "Integer"
+      },
+      "vSchema": {
+        "type": "String"
+      },
+      "vObject": {
+        "type": "String"
+      },
+      "vTargetBronzeTable": {
+        "type": "String"
+      },
+      "vRunId": {
+        "type": "String"
+      },
+      "vPipelineRunId": {
+        "type": "String"
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "DataPipeline",
+    "displayName": "pl_ingest_to_bronze",
+    "description": "Config-driven ingest from registered sources to Bronze Lakehouse (Files) with centralized run logging."
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "70931074-8d3f-8b65-4480-5205e071265d"
+  }
+}
