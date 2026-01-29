@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "name": "src_bz_wwi_sales_invoicelines",
+    "path": "/Tables",
+    "target": {
+      "type": "OneLake",
+      "oneLake": {
+        "path": "Tables/brz_wwi_sales_invoicelines",
+        "itemId": "68dd75f0-4ab0-8af3-4d01-1ac473d813ad",
+        "workspaceId": "00000000-0000-0000-0000-000000000000",
+        "artifactType": "Lakehouse"
+      }
+    }
+  }
+]
